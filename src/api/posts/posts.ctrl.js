@@ -1,91 +1,123 @@
-// initialize id
-let postId = 1;
+const { ObjectId } = require('mongoose').Types;
 
-const posts = [
-    {
-        id: 1,
-        title: 'title',
-        body: 'body'
-    }
-];
-
-// writing post, POST /api/posts {title, body}
-exports.write = (ctx) => {
-    const { title, body } = ctx.request.body;
-
-    postId += 1;
-
-    const post = { id: postId, title, body };
-    posts.push(post);
-    ctx.body = post;
-};
-
-// listing posts, GET /api/posts
-exports.list = (ctx) => {
-    ctx.body = posts;
-};
-
-// searching post, GET /api/posts/:id
-exports.read = (ctx) => {
+exports.checkObjectId = (ctx, next) => {
     const { id } = ctx.params;
-    const post = posts.find(p => p.id.toString() === id);
 
-    if (!post) {
-        ctx.status = 404;
-        ctx.body = { message: 'No post' };
-        return;
+    if (!ObjectId.isValid(id)) {
+        ctx.staus = 400;
+        return null;
     }
-    ctx.body = post;
+
+    return next();
 }
 
-// deleting post, DELETE /api/:id
-exports.remove = (ctx) => {
-    const { id } = ctx.params;
-    const index = posts.findIndex(p => p.id.toString() === id);
+const Post = require('../../models/post');
+const Joi = require('joi');
 
-    if (index === -1) {
-        ctx.status = 404;
-        ctx.body = { message: 'No post' };
-        return; 
+/* POST /api/posts
+    { title, body, tags }
+*/
+exports.write = async (ctx) => {
+    const schema = Joi.object().keys({
+        title: Joi.string().required(),
+        body: Joi.string().required(),
+        tags: Joi.array().items(Joi.string()).required()
+    });
+
+    const result = Joi.validate(ctx.request.body, schema);
+
+    if (result.error) {
+        ctx.status = 400;
+        ctx.body = result.error;
+        return;
     }
-    posts.splice(index, 1);
-    // return no content
-    ctx.status = 204; 
+
+
+    const { title, body, tags } = ctx.request.body;
+
+    // new instance of Post
+    const post = new Post({
+        title, body, tags
+    });
+
+    try {
+        // register on db
+        await post.save();
+        ctx.body = post;
+    } catch(e) {
+        ctx.throw(e,500);
+    }
 };
 
-// replacing post, PUT /api/posts/:id { title, body }
-exports.replace = (ctx) => {
-    // using PUT method for replacing the data not editing
-    const { id } = ctx.params;
-    const index = posts.findIndex(p => p.id.toString() === id);
-    if (index === -1) {
-        ctx.status = 404;
-        ctx.body = { message: 'No post' };
+exports.list = async (ctx) => {
+    const page = parseInt(ctx.query.page || 1, 10);
+
+    if (page < 1) {
+        ctx.status = 400;
         return;
     }
-    // replacing all info except id
-    posts[index] = {
-        id,
-        ...ctx.request.body
-    };
-    ctx.body = posts[index];
-}
 
-// editing post, PATCH /api/posts/:id { title, body }
-exports.update = (ctx) => {
-    const { id } = ctx.params;
+    try {
+        const posts = await Post.find()
+            .sort({_id:-1})
+            .limit(10)
+            .skip((page - 1) * 10)
+            .lean()
+            .exec();
+        const postCount = await Post.count().exec();
 
-    const index = posts.findIndex(p => p.id.toString() === id);
+        const limitBodyLength = post => ({
+            // ...post.toJSON(),
+            ...post,
+            body: post.body.length < 200 ? post.body : `${post.body.slice(0,200)}...`
+        });
+        ctx.body = posts.map(limitBodyLength);
 
-    if (index === -1) {
-        ctx.status = 404;
-        ctx.body = {message: 'No post'};
-        return;
+        ctx.set('Last-Page', Math.ceil(postCount / 10));
+        // ctx.body = posts;
+    } catch(e) {
+        ctx.throw(e, 500);
     }
-    // overwriting
-    posts[index] = {
-        ...posts[index],
-        ...ctx.request.body
-    };
-    ctx.body = posts[index];
-}
+};
+
+exports.read = async (ctx) => {
+    const { id } = ctx.params;
+    try {
+        const post = await Post.findById(id).exec();
+        if (!post) {
+            ctx.status = 404;
+            return;
+        }
+        ctx.body = post;
+    } catch(e) {
+        ctx.throw(e,500);
+    }
+};
+
+exports.remove = async (ctx) => {
+    const { id } = ctx.params;
+    try {
+        await Post.findByIdAndRemove(id).exec();
+        ctx.status = 204;
+    } catch(e) {
+        ctx.throw(e, 500);
+    }
+};
+
+exports.update = async (ctx) => {
+    const { id } = ctx.params;
+    try {
+        const post = await Post.findByIdAndUpdate(id, ctx.request.body, {
+            new: true
+            // to return updated
+            // without this, it returns one before updated
+        }).exec();
+        if (!post) {
+            ctx.status = 404;
+            return;
+        }
+        ctx.body = post;
+    } catch(e) {
+        ctx.throw(e,500);
+    }
+};

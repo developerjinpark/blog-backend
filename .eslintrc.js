@@ -5,6 +5,11 @@ module.exports = {
         "node": true
     },
     "extends": ["airbnb-base", "prettier"],
+    // "settings": {
+    //     "import/resolver": {
+    //         node: { paths: [path.resolve('./src')]}
+    //     },
+    // },
     "globals": {
         "Atomics": "readonly",
         "SharedArrayBuffer": "readonly"
@@ -14,7 +19,10 @@ module.exports = {
         "sourceType": "module"
     },
     "rules": {
+        "no-unused-var": 1,
+        "comma-dangle": 0,
         "no-console": 0,
+        "eol-last": 0,
         "func-names": 0
     }
 };

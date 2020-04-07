@@ -6,10 +6,19 @@ const bodyParser = require('koa-bodyparser');
 
 const api = require('./api');
 
+const mongoose = require('mongoose');
+
 const {
     PORT: port = 4000,
     MONGO_URI: mongoURI
 } = process.env;
+
+mongoose.Promise = global.Promise;
+mongoose.connect(mongoURI).then(() => {
+    console.log('connected to mongodb');
+}).catch((e) => {
+    console.error(e);
+});
 
 const app = new Koa();
 const router = new Router();
@@ -18,7 +27,7 @@ const router = new Router();
 router.use('/api', api.routes());
 
 // applying bodyparser
-app.use(bodyParser);
+app.use(bodyParser());
 
 // router.get('/', (ctx) => {
 //     ctx.body = 'Home';
