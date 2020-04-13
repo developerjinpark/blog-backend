@@ -1,3 +1,11 @@
+exports.checkLogin = (ctx, next) => {
+    if (!ctx.session.logged) {
+        ctx.status = 401;   //unauthorized
+        return null;
+    }
+    return next();
+};
+
 const { ObjectId } = require('mongoose').Types;
 
 exports.checkObjectId = (ctx, next) => {

@@ -7,10 +7,12 @@ const bodyParser = require('koa-bodyparser');
 const api = require('./api');
 
 const mongoose = require('mongoose');
+const session = require('koa-session');
 
 const {
     PORT: port = 4000,
-    MONGO_URI: mongoURI
+    MONGO_URI: mongoURI,
+    COOKIE_SIGN_KEY: signKey
 } = process.env;
 
 mongoose.Promise = global.Promise;
@@ -29,6 +31,14 @@ router.use('/api', api.routes());
 // applying bodyparser
 app.use(bodyParser());
 
+// applying sessiong / key
+const sessionConfig = {
+    maxAge: 86400000,   // a day
+    // signed: true     // default
+}
+
+app.use(session(sessionConfig, app));
+app.keys = [signKey];
 // router.get('/', (ctx) => {
 //     ctx.body = 'Home';
 // });

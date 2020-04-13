@@ -19,10 +19,10 @@ const posts = new Router();
 // posts.patch('/:id', printInfo);
 
 posts.get('/', postsCtrl.list);
-posts.post('/', postsCtrl.write);
 posts.get('/:id',postsCtrl.checkObjectId, postsCtrl.read);
-posts.delete('/:id', postsCtrl.checkObjectId, postsCtrl.remove);
+posts.post('/', postsCtrl.checkLogin, postsCtrl.write);
+posts.delete('/:id', postsCtrl.checkLogin, postsCtrl.checkObjectId, postsCtrl.remove);
 // posts.put('/:id', postsCtrl.replace);
-posts.patch('/:id', postsCtrl.checkObjectId, postsCtrl.update);
+posts.patch('/:id', postsCtrl.checkLogin, postsCtrl.checkObjectId, postsCtrl.update);
 
 module.exports = posts;
